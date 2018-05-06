@@ -248,6 +248,7 @@ function detectPoseInRealTime(video, model) {
   poseDetectionFrame();
 }
 
+
 export async function bindPage() {
   const model = new posenet.PoseNet();
 

@@ -10,7 +10,7 @@ var modelSize = 0.75;
 // A number between 0.2 and 1.0. How much posenet should scale the image by before feeding
 // it through the network.  Set this number lower to scale down the image and increase
 // the speed at the cost of accuracy.
-var imageScaleFactor = 0.75;
+var imageScaleFactor = 0.6;
 
 // the minimum score of keypoints from posenet to show.
 // Should be between 0.0 and 1.0. Use this to filter out
@@ -18,6 +18,8 @@ var imageScaleFactor = 0.75;
 var minPartConfidence = 0.3;
 
 // if the pose results should be flipped horizontally. Useful for webcam videos.
+// In p5, it is easy to flip the entire canvas horizontally so this can remain
+// false.
 var flipHorizontal = false;
 
 var capture;
@@ -62,6 +64,12 @@ function setup() {
 
 function draw() {
   background(255);
+
+  // mirror everything horizontally since front-facing cameras
+  // are naturally flipped
+  translate(width, 0);
+  scale(-1, 1);
+
   image(capture, 0, 0, videoSize, videoSize);
 
   noStroke();

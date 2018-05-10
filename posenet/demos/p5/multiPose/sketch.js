@@ -27,6 +27,8 @@ var minPartConfidence = 0.3;
 var imageScaleFactor = 0.5;
 
 // if the pose results should be flipped horizontally. Useful for webcam videos.
+// In p5, it is easy to flip the entire canvas horizontally so this can remain
+// false.
 var flipHorizontal = false;
 
 // must be 8 or 16.  The higher this number the faster the speed and lower the accuracy.
@@ -78,6 +80,12 @@ function setup() {
 
 function draw() {
   background(255);
+
+  // mirror everything horizontally since front-facing cameras
+  // are naturally flipped
+  translate(width, 0);
+  scale(-1, 1);
+
   image(capture, 0, 0, videoSize, videoSize);
 
   noStroke();

@@ -275,7 +275,7 @@ function segmentBodyInRealTime(video, net) {
         const coloredPartImageData = bodyPix.toColoredPartImageData(
             partSegmentation, partColorScales[guiState.partMap.colorScale]);
 
-        bodyPix.drawImageWithMask(
+        bodyPix.drawMask(
             canvas, video, coloredPartImageData, coloredPartImageOpacity, 0,
             flipHorizontal);
 

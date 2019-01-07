@@ -88,6 +88,7 @@ const guiState = {
     effect: 'mask',
     opacity: 0.7,
     backgroundBlurAmount: 3,
+    maskBlurAmount: 0,
     // on safari, blurring happens on the cpu, thus reducing performance, so
     // default to turning this off for safari
     edgeBlurAmount: isSafari() ? 0 : 3
@@ -117,7 +118,7 @@ function setupGui(cameras, net) {
 
   const gui = new dat.GUI({width: 300});
 
-  // Architecture: there are a few PoseNet models varying in size and
+  // Architecture: there are a few BodyPix models varying in size and
   // accuracy. 1.00 is the largest, but will be the slowest. 0.50 is the
   // fastest, but least accurate.
   const architectureController = gui.add(
@@ -136,25 +137,34 @@ function setupGui(cameras, net) {
   segmentation.add(guiState.segmentation, 'segmentationThreshold', 0.0, 1.0);
   const segmentationEffectController =
       segmentation.add(guiState.segmentation, 'effect', ['mask', 'bokeh']);
-  segmentation.add(guiState.segmentation, 'edgeBlurAmount')
-      .min(0)
-      .max(20)
-      .step(1);
+
   segmentation.open();
 
   let darknessLevel;
   let bokehBlurAmount;
+  let edgeBlurAmount;
+  let maskBlurAmount;
 
   segmentationEffectController.onChange(function(effectType) {
     if (effectType === 'mask') {
       if (bokehBlurAmount) {
         bokehBlurAmount.remove();
       }
+      if (maskBlurAmount) {
+        maskBlurAmount.remove();
+      }
       darknessLevel =
           segmentation.add(guiState.segmentation, 'opacity', 0.0, 1.0);
+      maskBlurAmount = segmentation.add(guiState.segmentation, 'maskBlurAmount')
+                           .min(0)
+                           .max(20)
+                           .step(1);
     } else if (effectType === 'bokeh') {
       if (darknessLevel) {
         darknessLevel.remove();
+      }
+      if (maskBlurAmount) {
+        maskBlurAmount.remove();
       }
       bokehBlurAmount = segmentation
                             .add(
@@ -164,6 +174,10 @@ function setupGui(cameras, net) {
                             .min(1)
                             .max(20)
                             .step(1);
+      edgeBlurAmount = segmentation.add(guiState.segmentation, 'edgeBlurAmount')
+                           .min(0)
+                           .max(20)
+                           .step(1);
     }
   });
 
@@ -210,8 +224,8 @@ function segmentBodyInRealTime(video, net) {
       // Important to purge variables and free up GPU memory
       guiState.net.dispose();
 
-      // Load the PoseNet model weights for either the 0.50, 0.75, 1.00,
-      // or 1.01 version
+      // Load the BodyPix model weights for either the 0.25, 0.50, 0.75, or 1.00
+      // version
       guiState.net = await bodyPix.load(+guiState.changeToArchitecture);
 
       guiState.changeToArchitecture = null;
@@ -238,10 +252,10 @@ function segmentBodyInRealTime(video, net) {
             const invert = true;
             const backgroundDarkeningMask =
                 bodyPix.toMaskImageData(personSegmentation, invert);
-            bodyPix.drawImageWithMask(
+            bodyPix.drawMask(
                 canvas, video, backgroundDarkeningMask,
                 guiState.segmentation.opacity,
-                guiState.segmentation.edgeBlurAmount, flipHorizontal);
+                guiState.segmentation.maskBlurAmount, flipHorizontal);
 
             break;
           case 'bokeh':

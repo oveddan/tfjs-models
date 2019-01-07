@@ -33,19 +33,19 @@ const images =
           'http://farm8.staticflickr.com/7275/7450203376_1fafd8474f_z.jpg',
       sittingOnPhone:
           'http://farm1.staticflickr.com/37/84822178_7397727bec_z.jpg',
-      ['readyToReturnServe (broken)']:
+      readyToReturnServe:
           'http://farm9.staticflickr.com/8172/8061507654_23d3e4ea06_z.jpg',
       skiing: 'http://farm3.staticflickr.com/2458/5725014603_10a79f1524_z.jpg',
-      ['pitching (broken)']:
+      pitching:
           'http://farm9.staticflickr.com/8153/7464259908_348c02ae65_z.jpg',
       withSuitcases:
           'http://farm3.staticflickr.com/2106/2243101628_d1a74995f7_z.jpg',
       readingBook:
           'http://farm3.staticflickr.com/2258/2155971166_04138f4aa7_z.jpg',
       atDesk: 'http://farm5.staticflickr.com/4061/4345218494_11b02485b0_z.jpg',
-      ['girlWithUmbrella (broken)']:
+      girlWithUmbrella:
           'http://farm5.staticflickr.com/4110/4976101457_b80e3f622f_z.jpg',
-      ['snowboard (broken)']:
+      snowboard:
           'http://farm3.staticflickr.com/2391/2246945374_d43dfcc9d9_z.jpg',
       onBed: 'http://farm9.staticflickr.com/8438/7841132664_919c631e25_z.jpg',
       christmas:
@@ -57,12 +57,12 @@ const images =
           'http://farm5.staticflickr.com/4063/4659589849_6e3d6250cd_z.jpg',
       servingTennis:
           'http://farm7.staticflickr.com/6088/6090810348_ac5eda47c9_z.jpg',
-      ['manWithTie (broken)']:
+      manWithTie:
           'http://farm4.staticflickr.com/3661/3437183240_4884303133_z.jpg',
       youngLady:
           'http://farm9.staticflickr.com/8370/8542870706_88249cc144_z.jpg',
       inRoom: 'http://farm8.staticflickr.com/7055/6878903138_cc2a4a8aa6_z.jpg',
-      ['lookingAtPhone (broken)']:
+      lookingAtPhone:
           'http://farm6.staticflickr.com/5026/5841917549_2e65fcee79_z.jpg'
     }
 

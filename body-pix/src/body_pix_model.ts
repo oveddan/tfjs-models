@@ -89,7 +89,7 @@ export class BodyPix {
    * and 0 otherwise. The width and height correspond to the same dimensions
    * of the input image.
    */
-  estimatePersonSegmentationOp(
+  estimatePersonSegmentationActivation(
       input: tf.Tensor3D, outputStride: OutputStride = 16,
       segmentationThreshold = 0.5): tf.Tensor2D {
     assertValidOutputStride(outputStride);
@@ -145,7 +145,7 @@ export class BodyPix {
     const segmentation = tf.tidy(() => {
       const imageTensor = toInputTensor(input);
 
-      return this.estimatePersonSegmentationOp(
+      return this.estimatePersonSegmentationActivation(
           imageTensor, outputStride, segmentationThreshold);
     });
 
@@ -180,7 +180,7 @@ export class BodyPix {
    * a corresponding body part, and -1 otherwise. The width and height
    * correspond to the same dimensions of the input image.
    */
-  estimatePartSegmentationOp(
+  estimatePartSegmentationActivation(
       input: tf.Tensor3D, outputStride: OutputStride = 16,
       segmentationThreshold = 0.5): tf.Tensor2D {
     assertValidOutputStride(outputStride);
@@ -243,7 +243,7 @@ export class BodyPix {
     const partSegmentation = tf.tidy(() => {
       const imageTensor = toInputTensor(input);
 
-      return this.estimatePartSegmentationOp(
+      return this.estimatePartSegmentationActivation(
           imageTensor, outputStride, segmentationThreshold);
     });
 

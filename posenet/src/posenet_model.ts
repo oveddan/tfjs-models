@@ -19,12 +19,11 @@ import * as tfconv from '@tensorflow/tfjs-converter';
 import * as tf from '@tensorflow/tfjs-core';
 
 import {mobileNetCheckpoint, resNet50Checkpoint} from './checkpoints';
-import {assertValidOutputStride, assertValidResolution, MobileNet, MobileNetMultiplier} from './mobilenet';
+import {assertValidOutputStride, MobileNet, MobileNetMultiplier} from './mobilenet';
 import {decodeMultiplePoses} from './multi_pose/decode_multiple_poses';
 import {ResNet} from './resnet';
-import {decodeSinglePose} from './single_pose/decode_single_pose';
 import {Pose, PosenetInput} from './types';
-import {getInputTensorDimensions, padAndResizeTo, scaleAndFlipPoses, toTensorBuffers3D} from './util';
+import {getInputTensorDimensions, getValidResolution, scalePoses, toResizedInputTensor, toTensorBuffers3D} from './util';
 
 export type PoseNetInputResolution =
     161|193|257|289|321|353|385|417|449|481|513|801|1217;
@@ -98,7 +97,6 @@ export interface BaseModel {
 export interface ModelConfig {
   architecture: PoseNetArchitecture;
   outputStride: PoseNetOutputStride;
-  inputResolution: PoseNetInputResolution;
   multiplier?: MobileNetMultiplier;
   modelUrl?: string;
   quantBytes?: PoseNetQuantBytes;
@@ -146,16 +144,6 @@ function validateModelConfig(config: ModelConfig) {
     throw new Error(
         `Invalid architecture ${config.architecture}. ` +
         `Should be one of ${VALID_ARCHITECTURE}`);
-  }
-
-  if (config.inputResolution == null) {
-    config.inputResolution = 257;
-  }
-
-  if (VALID_INPUT_RESOLUTION.indexOf(config.inputResolution) < 0) {
-    throw new Error(
-        `Invalid inputResolution ${config.inputResolution}. ` +
-        `Should be one of ${VALID_INPUT_RESOLUTION}`);
   }
 
   if (config.outputStride == null) {
@@ -229,6 +217,7 @@ export interface SinglePersonInterfaceConfig extends InferenceConfig {}
 export interface MultiPersonInferenceConfig extends InferenceConfig {
   maxDetections?: number;
   scoreThreshold?: number;
+  imageScaleFactor: number;
   nmsRadius?: number;
 }
 
@@ -250,12 +239,10 @@ export const SINGLE_PERSON_INFERENCE_CONFIG: SinglePersonInterfaceConfig = {
 export const MULTI_PERSON_INFERENCE_CONFIG: MultiPersonInferenceConfig = {
   flipHorizontal: false,
   maxDetections: 5,
+  imageScaleFactor: 0.5,
   scoreThreshold: 0.5,
   nmsRadius: 20
 };
-
-function validateSinglePersonInferenceConfig(
-    config: SinglePersonInterfaceConfig) {}
 
 function validateMultiPersonInputConfig(config: MultiPersonInferenceConfig) {
   const {maxDetections, scoreThreshold, nmsRadius} = config;
@@ -280,11 +267,9 @@ function validateMultiPersonInputConfig(config: MultiPersonInferenceConfig) {
 
 export class PoseNet {
   baseModel: BaseModel;
-  inputResolution: PoseNetInputResolution;
 
-  constructor(net: BaseModel, inputResolution: PoseNetInputResolution) {
+  constructor(net: BaseModel) {
     this.baseModel = net;
-    this.inputResolution = inputResolution;
   }
 
   /**
@@ -319,18 +304,22 @@ export class PoseNet {
     validateMultiPersonInputConfig(config);
 
     const outputStride = this.baseModel.outputStride;
-    const inputResolution = this.inputResolution;
 
     assertValidOutputStride(outputStride);
-    assertValidResolution(this.inputResolution, outputStride);
 
     const [height, width] = getInputTensorDimensions(input);
 
-    const {resized, padding} =
-        padAndResizeTo(input, [inputResolution, inputResolution]);
+    const resizedHeight =
+        getValidResolution(config.imageScaleFactor, height, outputStride);
+    const resizedWidth =
+        getValidResolution(config.imageScaleFactor, width, outputStride);
 
     const {heatmapScores, offsets, displacementFwd, displacementBwd} =
-        this.baseModel.predict(resized);
+        tf.tidy(() => {
+          const inputTensor =
+              toResizedInputTensor(input, resizedHeight, resizedWidth, false);
+          return this.baseModel.predict(inputTensor);
+        });
 
     const [scoresBuffer, offsetsBuffer, displacementsFwdBuffer, displacementsBwdBuffer] =
         await toTensorBuffers3D(
@@ -341,89 +330,15 @@ export class PoseNet {
         displacementsBwdBuffer, outputStride, configWithDefaults.maxDetections,
         configWithDefaults.scoreThreshold, configWithDefaults.nmsRadius);
 
-    const resultPoses = scaleAndFlipPoses(
-        poses, [height, width], [inputResolution, inputResolution], padding,
-        configWithDefaults.flipHorizontal);
-
     heatmapScores.dispose();
     offsets.dispose();
     displacementFwd.dispose();
     displacementBwd.dispose();
-    resized.dispose();
 
-    return resultPoses;
-  }
+    const scaleY = height / resizedHeight;
+    const scaleX = width / resizedWidth;
 
-  /**
-   * Infer through PoseNet, and estimates a single pose using the outputs.
-   * This does standard ImageNet pre-processing before inferring through the
-   * model. The image should pixels should have values [0-255]. It detects
-   * multiple poses and finds their parts from part scores and displacement
-   * vectors using a fast greedy decoding algorithm.  It returns a single pose
-   *
-   * @param input
-   * ImageData|HTMLImageElement|HTMLCanvasElement|HTMLVideoElement) The input
-   * image to feed through the network.
-   *
-   * @param config SinglePersonEstimationConfig object that contains
-   * parameters for the PoseNet inference using single pose estimation.
-   *
-   * @return An pose and its scores, containing keypoints and
-   * the corresponding keypoint scores.  The positions of the keypoints are
-   * in the same scale as the original image
-   */
-  async estimateSinglePose(
-      input: PosenetInput,
-      config: SinglePersonInterfaceConfig = SINGLE_PERSON_INFERENCE_CONFIG):
-      Promise<Pose> {
-    const configWithDefaults = {...SINGLE_PERSON_INFERENCE_CONFIG, ...config};
-
-    validateSinglePersonInferenceConfig(configWithDefaults);
-
-    const outputStride = this.baseModel.outputStride;
-    const inputResolution = this.inputResolution;
-    assertValidOutputStride(outputStride);
-    assertValidResolution(inputResolution, outputStride);
-
-    const [height, width] = getInputTensorDimensions(input);
-
-    const {resized, padding} =
-        padAndResizeTo(input, [inputResolution, inputResolution]);
-
-    const {heatmapScores, offsets, displacementFwd, displacementBwd} =
-        this.baseModel.predict(resized);
-
-    const pose = await decodeSinglePose(heatmapScores, offsets, outputStride);
-    const poses = [pose];
-
-    const resultPoses = scaleAndFlipPoses(
-        poses, [height, width], [inputResolution, inputResolution], padding,
-        configWithDefaults.flipHorizontal);
-
-    heatmapScores.dispose();
-    offsets.dispose();
-    displacementFwd.dispose();
-    displacementBwd.dispose();
-    resized.dispose();
-
-    return resultPoses[0];
-  }
-
-  /** Deprecated: Use either estimateSinglePose or estimateMultiplePoses */
-  async estimatePoses(
-      input: PosenetInput,
-      config: LegacySinglePersonInferenceConfig|
-      LegacyMultiPersonInferenceConfig): Promise<Pose[]> {
-    if (config.decodingMethod == 'single-person') {
-      const pose = await this.estimateSinglePose(input, config);
-      return [pose];
-    } else {
-      return this.estimateMultiplePoses(input, config);
-    }
-  }
-
-  public dispose() {
-    this.baseModel.dispose();
+    return scalePoses(poses, scaleY, scaleX);
   }
 }
 
@@ -441,7 +356,7 @@ async function loadMobileNet(config: ModelConfig): Promise<PoseNet> {
   const url = mobileNetCheckpoint(outputStride, multiplier, quantBytes);
   const graphModel = await tfconv.loadGraphModel(config.modelUrl || url);
   const mobilenet = new MobileNet(graphModel, outputStride);
-  return new PoseNet(mobilenet, config.inputResolution);
+  return new PoseNet(mobilenet);
 }
 
 async function loadResNet(config: ModelConfig): Promise<PoseNet> {
@@ -457,7 +372,7 @@ async function loadResNet(config: ModelConfig): Promise<PoseNet> {
   const url = resNet50Checkpoint(outputStride, quantBytes);
   const graphModel = await tfconv.loadGraphModel(config.modelUrl || url);
   const resnet = new ResNet(graphModel, outputStride);
-  return new PoseNet(resnet, config.inputResolution);
+  return new PoseNet(resnet);
 }
 
 /**

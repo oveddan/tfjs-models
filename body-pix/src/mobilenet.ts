@@ -21,7 +21,7 @@ import {ModelWeights} from './model_weights';
 export type MobileNetMultiplier = 0.25|0.50|0.75|1.0|1.01;
 export type ConvolutionType = 'conv2d'|'separableConv';
 export type ConvolutionDefinition = [ConvolutionType, number];
-export type OutputStride = 32|16|8;
+export type OutputStride = 32|16|8|4|2|1;
 
 // clang-format off
 const mobileNet100Architecture: ConvolutionDefinition[] = [
@@ -78,7 +78,7 @@ const mobileNet50Architecture: ConvolutionDefinition[]  = [
 const mobileNet25Architecture = mobileNet50Architecture;
 // clang-format on
 
-const VALID_OUTPUT_STRIDES = [8, 16, 32];
+const VALID_OUTPUT_STRIDES = [1, 2, 4, 8, 16, 32];
 // tslint:disable-next-line:no-any
 export function assertValidOutputStride(outputStride: any) {
   tf.util.assert(
@@ -86,12 +86,13 @@ export function assertValidOutputStride(outputStride: any) {
   tf.util.assert(
       VALID_OUTPUT_STRIDES.indexOf(outputStride) >= 0,
       () => `outputStride of ${outputStride} is invalid. ` +
-          `It must be either 8, 16, or 32`);
+          `It must be either 1, 2, 4, 8, 16, or 32`);
 }
 
 // tslint:disable-next-line:no-any
 export function assertValidResolution(resolution: any, outputStride: number) {
-  tf.util.assert(typeof resolution === 'number', () => 'resolution is not a number');
+  tf.util.assert(
+      typeof resolution === 'number', () => 'resolution is not a number');
 
   tf.util.assert(
       (resolution - 1) % outputStride === 0,

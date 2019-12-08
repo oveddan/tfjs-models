@@ -638,8 +638,8 @@ export class BodyPix {
         scaledLongOffsets = longOffsets;
       }
 
-      const segmentation = toMaskTensor(
-          scaledSegmentScores.squeeze(), config.segmentationThreshold);
+      const segmentation: tf.Tensor2D =
+          scaledSegmentScores.squeeze().sigmoid() as tf.Tensor2D;
 
       return {
         segmentation,
@@ -721,6 +721,7 @@ export class BodyPix {
   segmentPersonPartsActivation(
       input: BodyPixInput, internalResolution: BodyPixInternalResolution,
       segmentationThreshold = 0.5): {
+    segmentation: tf.Tensor2D,
     partSegmentation: tf.Tensor2D,
     heatmapScores: tf.Tensor3D,
     offsets: tf.Tensor3D,
@@ -738,6 +739,7 @@ export class BodyPix {
     } = padAndResizeTo(input, internalResolutionHeightAndWidth);
 
     const {
+      segmentation,
       partSegmentation,
       heatmapScores,
       offsets,
@@ -764,11 +766,10 @@ export class BodyPix {
           partHeatmapLogits, [height, width], [resizedHeight, resizedWidth],
           [[padding.top, padding.bottom], [padding.left, padding.right]],
           APPLY_SIGMOID_ACTIVATION);
-      const segmentation =
-          toMaskTensor(scaledSegmentScores.squeeze(), segmentationThreshold);
+
       return {
-        partSegmentation:
-            decodePartSegmentation(segmentation, scaledPartHeatmapScore),
+        segmentation: scaledSegmentScores.squeeze() as tf.Tensor2D,
+        partSegmentation: decodePartSegmentation(scaledPartHeatmapScore),
         heatmapScores,
         offsets,
         displacementFwd,
@@ -777,6 +778,7 @@ export class BodyPix {
     });
     resized.dispose();
     return {
+      segmentation,
       partSegmentation,
       heatmapScores,
       offsets,

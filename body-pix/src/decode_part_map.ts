@@ -32,9 +32,9 @@ function toFlattenedOneHotPartMap(partHeatmapScores: tf.Tensor3D): tf.Tensor2D {
   return tf.oneHot(partMapFlattened, numParts) as tf.Tensor2D;
 }
 
-function clipByMask2d(image: tf.Tensor2D, mask: tf.Tensor2D): tf.Tensor2D {
-  return image.mul(mask);
-}
+// function clipByMask2d(image: tf.Tensor2D, mask: tf.Tensor2D): tf.Tensor2D {
+//   return image.mul(mask);
+// }
 
 /**
  * Takes the sigmoid of the segmentation output, and generates a segmentation
@@ -71,9 +71,8 @@ export function toMaskTensor(
  * by the segmentation mask.  It will have values of -1 for pixels that are
  * outside of the body and do not have a corresponding part.
  */
-export function decodePartSegmentation(
-    segmentationMask: tf.Tensor2D,
-    partHeatmapScores: tf.Tensor3D): tf.Tensor2D {
+export function decodePartSegmentation(partHeatmapScores: tf.Tensor3D):
+    tf.Tensor2D {
   const [partMapHeight, partMapWidth, numParts] = partHeatmapScores.shape;
   return tf.tidy(() => {
     const flattenedMap = toFlattenedOneHotPartMap(partHeatmapScores);
@@ -82,13 +81,8 @@ export function decodePartSegmentation(
     const partMapFlattened =
         flattenedMap.matMul(partNumbers as tf.Tensor2D).toInt();
 
-    const partMap = partMapFlattened.reshape([partMapHeight, partMapWidth]);
-
-    const partMapShiftedUpForClipping = partMap.add(tf.scalar(1, 'int32'));
-
-    return clipByMask2d(
-               partMapShiftedUpForClipping as tf.Tensor2D, segmentationMask)
-        .sub(tf.scalar(1, 'int32'));
+    return partMapFlattened.reshape([partMapHeight, partMapWidth]) as
+        tf.Tensor2D;
   });
 }
 
